@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<entriesConfig>
+    <dateFormat>dd/MM/yyyy</dateFormat>
+    <dateTimeFormat>dd/MM/yyyy HH:mm:ss</dateTimeFormat>
+    <encoding>UTF-16LE</encoding>
+    <serviceExitText>Saída em Serviço</serviceExitText>
+</entriesConfig>
