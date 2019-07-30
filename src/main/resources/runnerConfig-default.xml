@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<runnerConfig>
+    <configDataPath>/home/timesheet/configData</configDataPath>
+    <entriesPath>/home/timesheet/entries</entriesPath>
+    <fillAllMonthDays>true</fillAllMonthDays>
+    <reportEncoding>UTF-8</reportEncoding>
+    <reportType>EXCEL</reportType>
+    <reportsPath>/home/timesheet/reports</reportsPath>
+</runnerConfig>

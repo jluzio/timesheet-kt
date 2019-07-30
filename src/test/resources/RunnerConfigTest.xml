@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<runnerConfig>
+    <targetDate>2018-01</targetDate>
+    <inputPath>/home/timesheet</inputPath>
+    <inputConfig>
+        <dateFormat>dd/MM/yyyy</dateFormat>
+        <dateTimeFormat>dd/MM/yyyy HH:mm:ss</dateTimeFormat>
+        <encoding>UTF-8</encoding>
+        <serviceExitText>Service Exit</serviceExitText>
+    </inputConfig>
+    <outputPath>/home/timesheet</outputPath>
+    <outputEncoding>UTF-8</outputEncoding>
+    <outputTargets>EXCEL</outputTargets>
+    <outputTargets>CSV</outputTargets>
+    <fillAllMonthDays>true</fillAllMonthDays>
+</runnerConfig>

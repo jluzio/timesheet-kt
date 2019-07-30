@@ -1,0 +1,26 @@
+{
+	"OTHER": [
+		{
+			"date": "2017-06-16",
+			"endDate": null,
+			"type": null
+		}
+	],
+	"VACATION": [
+		{
+			"date": "2017-06-14",
+			"endDate": null,
+			"type": null
+		},
+		{
+			"date": "2017-06-19",
+			"endDate": "2017-06-20",
+			"type": null
+		},
+		{
+			"date": "2017-06-22",
+			"endDate": "2017-06-26",
+			"type": null
+		}
+	]
+}
