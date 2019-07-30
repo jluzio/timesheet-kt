@@ -3,7 +3,7 @@ package org.example.apps.timesheet.config
 import com.fasterxml.jackson.core.type.TypeReference
 import java.nio.file.Path
 import java.time.LocalDate
-import java.util.LinkedHashMap
+import java.util.*
 import javax.xml.bind.annotation.XmlAccessType
 import javax.xml.bind.annotation.XmlAccessorType
 import javax.xml.bind.annotation.XmlRootElement
