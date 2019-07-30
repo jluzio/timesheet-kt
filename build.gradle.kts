@@ -35,6 +35,8 @@ dependencies {
 	implementation("javax.inject:javax.inject:1")
 	implementation("com.google.guava:guava:28.0-jre")
 	implementation("org.apache.poi:poi:4.1.0")
+	implementation("javax.xml.bind:jaxb-api:2.3.0")
+	implementation("org.glassfish.jaxb:jaxb-runtime:2.3.2")
 	implementation("io.github.threeten-jaxb:threeten-jaxb-core:1.2")
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
