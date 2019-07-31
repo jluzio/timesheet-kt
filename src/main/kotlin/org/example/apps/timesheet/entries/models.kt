@@ -15,9 +15,8 @@ enum class EntryType {
     ENTER,
     EXIT,
     SERVICE_EXIT,
-    HOLLIDAY,
-    VACATION,
-    SICK_DAY
+    DAY_OFF,
+    ABSENCE
 }
 enum class EntryTypeCode {
     ENTER,

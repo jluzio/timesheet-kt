@@ -8,7 +8,7 @@ import javax.xml.bind.annotation.XmlAccessType
 import javax.xml.bind.annotation.XmlAccessorType
 import javax.xml.bind.annotation.XmlRootElement
 
-val defaultEncoding = "UTF-8"
+const val DEFAULT_ENCODING = "UTF-8"
 
 data class Absence(
         var date: LocalDate?,
@@ -23,8 +23,8 @@ data class DayOff(
 )
 
 data class ConfigData(
-        var absences: List<Absence> = listOf(),
-        var daysOff: List<DayOff> = listOf()
+        var absences: List<Absence> = emptyList(),
+        var daysOff: List<DayOff> = emptyList()
 )
 
 @XmlRootElement
@@ -37,11 +37,11 @@ data class EntriesConfig(
 
 data class ProcessConfig(
         var month: LocalDate? = null,
-        var entriesFiles: List<Path> = listOf(),
+        var entriesFiles: List<Path> = emptyList(),
         var entriesConfig: EntriesConfig? = null,
         var configData: ConfigData? = null,
         var reportFiles: Map<ReportType, Path> = mapOf(),
-        var reportEncoding: String = defaultEncoding,
+        var reportEncoding: String = DEFAULT_ENCODING,
         var fillAllMonthDays: Boolean = true
 )
 
@@ -53,8 +53,8 @@ data class RunnerConfig(
         var entriesConfig: EntriesConfig? = null,
         var configDataPath: String? = null,
         var reportsPath: String? = null,
-        var reportEncoding: String = defaultEncoding,
-        var reportTypes: List<ReportType> = listOf(),
+        var reportEncoding: String = DEFAULT_ENCODING,
+        var reportTypes: List<ReportType> = emptyList(),
         var fillAllMonthDays: Boolean = true
 )
 

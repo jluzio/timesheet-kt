@@ -28,7 +28,7 @@ class ConfigDataReader {
         return configData
     }
 
-    internal fun <T> readFile(file: Path, typeRef: TypeReference<T>): T? {
+    private fun <T> readFile(file: Path, typeRef: TypeReference<T>): T? {
         var value: T? = null
         if (Files.exists(file)) {
             value = objectMapper.readValue(file.toFile(), typeRef)
