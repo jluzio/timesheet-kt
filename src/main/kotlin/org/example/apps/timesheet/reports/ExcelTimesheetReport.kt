@@ -113,10 +113,7 @@ class ExcelTimesheetReport : TimesheetReport<FileReportConfig> {
         for (cellDataType in CellDataType.values()) {
             val defaultCellStyle = stylesMap[getCellStyleKey(cellDataType, DataGroupType.DEFAULT)]!!
 
-            val variantCellStyle = when(color) {
-                null -> defaultCellStyle
-                else -> createBGColorCellStyle(workbook.createCellStyle(), defaultCellStyle, color)
-            }
+            val variantCellStyle = if (color == null) defaultCellStyle else createBGColorCellStyle(workbook.createCellStyle(), defaultCellStyle, color)
             val variantKey = getCellStyleKey(cellDataType, dataGroupType)
             stylesMap[variantKey] = variantCellStyle
         }
