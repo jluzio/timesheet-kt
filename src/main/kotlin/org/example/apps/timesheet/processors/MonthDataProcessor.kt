@@ -1,9 +1,9 @@
 package org.example.apps.timesheet.processors
 
+import extensions.java.time.rangeTo
+import org.example.apps.timesheet.config.ConfigPredicates
 import org.example.apps.timesheet.config.ProcessConfig
 import org.example.apps.timesheet.entries.Entry
-import org.example.apps.timesheet.config.ConfigPredicates
-import java.time.ext.*
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Named
@@ -13,18 +13,18 @@ class MonthDataProcessor {
     @Inject
     lateinit var entryDataProcessor: EntryDataProcessor
 
-    fun process(entries: List<Entry>, config: ProcessConfig) {
-        val dayWorkDatas = entryDataProcessor.process(entries, config)
+    fun process(entries: List<Entry>, config: ProcessConfig): List<DayWorkData> {
+        val dayWorkDataList = entryDataProcessor.process(entries, config)
 
-        val dateInMonth = config.month ?: dayWorkDatas.first().startDatetime!!.toLocalDate()
+        val dateInMonth = config.month ?: dayWorkDataList.first().startDatetime!!.toLocalDate()
         val firstDayOfMonth = dateInMonth.withDayOfMonth(1)
         val lastDayOfMonth = dateInMonth.plusDays(1).withDayOfMonth(1).plusDays(-1)
 
-        val monthDayWorkDatas = mutableListOf<DayWorkData>()
+        val monthDayWorkDataList = mutableListOf<DayWorkData>()
         for (date in firstDayOfMonth..lastDayOfMonth) {
-            val dayWorkData = dayWorkDatas.find { it.startDatetime!!.toLocalDate() == date }
+            val dayWorkData = dayWorkDataList.find { it.startDatetime!!.toLocalDate() == date }
             if (dayWorkData != null) {
-                monthDayWorkDatas += dayWorkData
+                monthDayWorkDataList += dayWorkData
             } else if (config.fillAllMonthDays) {
                 val datetimeValue = date.atStartOfDay()
                 val dayOff = isDayOff(date, config)
@@ -36,9 +36,10 @@ class MonthDataProcessor {
                         dayOff = dayOff,
                         absence = absence
                 )
-                monthDayWorkDatas.add(dayWorkData)
+                monthDayWorkDataList.add(dayWorkData)
             }
         }
+        return dayWorkDataList
     }
 
     private fun isDayOff(date: LocalDate, config: ProcessConfig): Boolean {

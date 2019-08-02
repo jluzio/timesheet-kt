@@ -10,19 +10,19 @@ import java.time.temporal.ChronoUnit
 
 @Named
 class EntryDataProcessor {
-    val log = LogManager.getLogger(javaClass)
+    private val log = LogManager.getLogger(javaClass)
 
     fun process(entries: List<Entry>, config: ProcessConfig): List<DayWorkData> {
         var lastDay: LocalDate? = null
         var currentDayWorkData: DayWorkData? = null
-        val dayWorkDatas = mutableListOf<DayWorkData>()
+        val dayWorkDataList = mutableListOf<DayWorkData>()
 
         entries.sortedBy { it.datetime }.forEachIndexed { index, entry ->
             log.debug("Processing [{}]: {}", index, entry)
 
             // day transition
             if (lastDay == null || entry.date != lastDay) {
-                currentDayWorkData?.run { dayWorkDatas += this }
+                currentDayWorkData?.run { dayWorkDataList += this }
                 currentDayWorkData = DayWorkData()
             }
 
@@ -59,11 +59,11 @@ class EntryDataProcessor {
             }
 
             if (index == entries.lastIndex) {
-                dayWorkDatas += dayWorkData
+                dayWorkDataList += dayWorkData
             }
         }
 
-        return dayWorkDatas
+        return dayWorkDataList
     }
 
     private fun getDateDiffInMinutes(firstEntry: Entry, secondEntry: Entry) =
