@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration
 @Configuration
 @ComponentScan(basePackages = [
     "org.example.apps.timesheet.config",
+    "org.example.apps.timesheet.core",
     "org.example.apps.timesheet.entries",
     "org.example.apps.timesheet.processors",
     "org.example.apps.timesheet.reports"

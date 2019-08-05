@@ -1,17 +1,22 @@
 package org.example.apps.timesheet.reports
 
 import org.apache.logging.log4j.LogManager
-import org.example.apps.timesheet.processors.DayWorkData
-import java.nio.file.Path
-import javax.inject.Named
-import java.util.function.BiFunction
-import java.util.concurrent.TimeUnit
 import org.apache.poi.hssf.usermodel.HSSFWorkbook
 import org.apache.poi.ss.usermodel.*
-import org.example.apps.timesheet.reports.ExcelTimesheetReport.SheetCfg.DataGroupType
+import org.example.apps.timesheet.processors.DayWorkData
 import org.example.apps.timesheet.reports.ExcelTimesheetReport.SheetCfg.CellDataType
+import org.example.apps.timesheet.reports.ExcelTimesheetReport.SheetCfg.DataGroupType
 import java.nio.file.Files
+import java.time.DayOfWeek
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.TimeUnit
+import java.util.function.Predicate
+import javax.inject.Named
+import extensions.java.util.date.*
+import org.apache.poi.ss.util.CellReference
+import java.util.*
+import org.example.apps.timesheet.reports.ExcelTimesheetReport.SheetCfg
+
 
 
 @Named
@@ -45,10 +50,17 @@ class ExcelTimesheetReport : TimesheetReport<FileReportConfig> {
             DAY_OFF
         }
     }
-    object Formulas {
+    private object Formulas {
         fun dateHours(str: String): String = String.format("HOUR(%1\$s)+MINUTE(%1\$s)/%2\$s+SECOND(%1\$s)/%3\$s", str, TimeUnit.HOURS.toMinutes(1), TimeUnit.HOURS.toSeconds(1))
         fun minuteHours(str: String): String = "$str/${TimeUnit.HOURS.toMinutes(1)}"
         fun dateDiff(c1: String, c2: String): String = "$c1 - $c2"
+    }
+    private object Predicates {
+        val isWeekendDay = Predicate<DayWorkData> { it.startDatetime!!.dayOfWeek >= DayOfWeek.SATURDAY }
+        val isDayOff = Predicate<DayWorkData> { it.dayOff && !isWeekendDay.test(it) }
+        val isAbsence = Predicate<DayWorkData> { it.absence && !isWeekendDay.test(it) }
+        val isDayOffOrAbsence = Predicate<DayWorkData> { isAbsence.or(isDayOff).test(it) }
+        val isWorkDay = Predicate<DayWorkData> { isWeekendDay.negate().and(isDayOffOrAbsence.negate()).test(it) }
     }
 
     override fun create(dayWorkDataList: List<DayWorkData>, config: FileReportConfig) {
@@ -71,6 +83,39 @@ class ExcelTimesheetReport : TimesheetReport<FileReportConfig> {
         createCell(headerRow, SheetCfg.Columns.EXIT).setCellValue("Exit");
         createCell(headerRow, SheetCfg.Columns.WORK_HOURS_FORMULA).setCellValue("Work (hf)");
 
+        for ((index, dayWorkData) in dayWorkDataList.withIndex()) {
+            val row = sheet.createRow(index + 1)
+
+            val dataGroupType: DataGroupType = when {
+                Predicates.isWeekendDay.test(dayWorkData) -> DataGroupType.WEEKEND
+                Predicates.isAbsence.test(dayWorkData) -> DataGroupType.ABSENCE
+                Predicates.isDayOff.test(dayWorkData) -> DataGroupType.DAY_OFF
+                else -> DataGroupType.WORKDAY
+            }
+            val cellStyles = object {
+                val normal = stylesMap[getCellStyleKey(CellDataType.NORMAL, dataGroupType)]
+                val date = stylesMap[getCellStyleKey(CellDataType.DATE, dataGroupType)]
+                val time = stylesMap[getCellStyleKey(CellDataType.TIME, dataGroupType)]
+                val floatNumber = stylesMap[getCellStyleKey(CellDataType.FLOAT_NUMBER, dataGroupType)]
+            }
+
+            createCell(row, SheetCfg.Columns.DATE, cellStyles.date).setCellValue(dayWorkData.startDatetime?.toDate())
+            createCell(row, SheetCfg.Columns.WORK_HOURS, cellStyles.floatNumber).setCellValue(dayWorkData.workInMinutes.toDouble() / TimeUnit.HOURS.toMinutes(1))
+            createCell(row, SheetCfg.Columns.BREAK, cellStyles.normal).setCellValue(dayWorkData.breakInMinutes.toDouble())
+            createCell(row, SheetCfg.Columns.REMARKS, cellStyles.normal).setCellValue(dayWorkData.remarks.orEmpty())
+            createCell(row, SheetCfg.Columns.ENTER, cellStyles.time).setCellValue(dayWorkData.startDatetime?.toDate())
+            val exitCell = createCell(row, SheetCfg.Columns.EXIT, cellStyles.time)
+            dayWorkData.exitDatetime?.run { exitCell.setCellValue(toDate()) }
+
+            val enterCellRef = getCellRef(row.getCell(SheetCfg.Columns.ENTER, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK))
+            val exitCellRef = getCellRef(row.getCell(SheetCfg.Columns.EXIT, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK))
+            val breakCellRef = getCellRef(row.getCell(SheetCfg.Columns.BREAK, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK))
+            val workTimeNoBreakFormula = Formulas.dateDiff(exitCellRef, enterCellRef)
+            val workHoursFormula = "${Formulas.dateHours(workTimeNoBreakFormula)} - ${Formulas.minuteHours(breakCellRef)}"
+            createCell(row, SheetCfg.Columns.WORK_HOURS_FORMULA, cellStyles.floatNumber).cellFormula = workHoursFormula
+        }
+
+        log.debug("Writing to {}", config.file)
         Files.newOutputStream(config.file).use {
             workbook.write(it);
             workbook.close();
@@ -142,5 +187,7 @@ class ExcelTimesheetReport : TimesheetReport<FileReportConfig> {
         }
         return c
     }
+
+    private fun getCellRef(cell: Cell): String = CellReference(cell).formatAsString()
 
 }

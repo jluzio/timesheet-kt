@@ -18,7 +18,7 @@ class MonthDataProcessor {
 
         val dateInMonth = config.month ?: dayWorkDataList.first().startDatetime!!.toLocalDate()
         val firstDayOfMonth = dateInMonth.withDayOfMonth(1)
-        val lastDayOfMonth = dateInMonth.plusDays(1).withDayOfMonth(1).plusDays(-1)
+        val lastDayOfMonth = dateInMonth.plusMonths(1).withDayOfMonth(1).plusDays(-1)
 
         val monthDayWorkDataList = mutableListOf<DayWorkData>()
         for (date in firstDayOfMonth..lastDayOfMonth) {
@@ -36,10 +36,10 @@ class MonthDataProcessor {
                         dayOff = dayOff,
                         absence = absence
                 )
-                monthDayWorkDataList.add(dayWorkData)
+                monthDayWorkDataList += dayWorkData
             }
         }
-        return dayWorkDataList
+        return monthDayWorkDataList
     }
 
     private fun isDayOff(date: LocalDate, config: ProcessConfig): Boolean {
