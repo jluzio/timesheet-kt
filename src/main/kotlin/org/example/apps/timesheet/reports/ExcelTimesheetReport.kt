@@ -13,11 +13,8 @@ import java.util.concurrent.TimeUnit
 import java.util.function.Predicate
 import javax.inject.Named
 import extensions.java.util.date.*
-import org.apache.poi.ss.util.CellReference
-import java.util.*
-import org.example.apps.timesheet.reports.ExcelTimesheetReport.SheetCfg
-
-
+import org.example.apps.timesheet.TimesheetConstants
+import extensions.org.apache.poi.*
 
 @Named
 class ExcelTimesheetReport : TimesheetReport<FileReportConfig> {
@@ -74,18 +71,18 @@ class ExcelTimesheetReport : TimesheetReport<FileReportConfig> {
         val sheetName: String? = dayWorkDataList.first()?.let { dateFormat.format(it.startDatetime) }
         val sheet = workbook.createSheet(sheetName)
 
+        sheet.row(0) {
+            cell(SheetCfg.Columns.DATE) { setCellValue("Date") }
+            cell(SheetCfg.Columns.WORK_HOURS) { setCellValue("Work (h)") }
+            cell(SheetCfg.Columns.BREAK) { setCellValue("Break") }
+            cell(SheetCfg.Columns.REMARKS) { setCellValue("Remarks") }
+            cell(SheetCfg.Columns.ENTER) { setCellValue("Enter") }
+            cell(SheetCfg.Columns.EXIT) { setCellValue("Exit") }
+            cell(SheetCfg.Columns.WORK_HOURS_FORMULA) { setCellValue("Work (hf)") }
+        }
         val headerRow = sheet.createRow(0)
-        createCell(headerRow, SheetCfg.Columns.DATE).setCellValue("Date");
-        createCell(headerRow, SheetCfg.Columns.WORK_HOURS).setCellValue("Work (h)");
-        createCell(headerRow, SheetCfg.Columns.BREAK).setCellValue("Break");
-        createCell(headerRow, SheetCfg.Columns.REMARKS).setCellValue("Remarks");
-        createCell(headerRow, SheetCfg.Columns.ENTER).setCellValue("Enter");
-        createCell(headerRow, SheetCfg.Columns.EXIT).setCellValue("Exit");
-        createCell(headerRow, SheetCfg.Columns.WORK_HOURS_FORMULA).setCellValue("Work (hf)");
 
         for ((index, dayWorkData) in dayWorkDataList.withIndex()) {
-            val row = sheet.createRow(index + 1)
-
             val dataGroupType: DataGroupType = when {
                 Predicates.isWeekendDay.test(dayWorkData) -> DataGroupType.WEEKEND
                 Predicates.isAbsence.test(dayWorkData) -> DataGroupType.ABSENCE
@@ -99,26 +96,146 @@ class ExcelTimesheetReport : TimesheetReport<FileReportConfig> {
                 val floatNumber = stylesMap[getCellStyleKey(CellDataType.FLOAT_NUMBER, dataGroupType)]
             }
 
-            createCell(row, SheetCfg.Columns.DATE, cellStyles.date).setCellValue(dayWorkData.startDatetime?.toDate())
-            createCell(row, SheetCfg.Columns.WORK_HOURS, cellStyles.floatNumber).setCellValue(dayWorkData.workInMinutes.toDouble() / TimeUnit.HOURS.toMinutes(1))
-            createCell(row, SheetCfg.Columns.BREAK, cellStyles.normal).setCellValue(dayWorkData.breakInMinutes.toDouble())
-            createCell(row, SheetCfg.Columns.REMARKS, cellStyles.normal).setCellValue(dayWorkData.remarks.orEmpty())
-            createCell(row, SheetCfg.Columns.ENTER, cellStyles.time).setCellValue(dayWorkData.startDatetime?.toDate())
-            val exitCell = createCell(row, SheetCfg.Columns.EXIT, cellStyles.time)
-            dayWorkData.exitDatetime?.run { exitCell.setCellValue(toDate()) }
+            sheet.row(index + 1) {
+                cell(SheetCfg.Columns.DATE, cellStyles.date) { setCellValue(dayWorkData.startDatetime?.toDate()) }
+                cell(SheetCfg.Columns.WORK_HOURS, cellStyles.floatNumber) { setCellValue(dayWorkData.workInMinutes.toDouble() / TimeUnit.HOURS.toMinutes(1)) }
+                val breakCell = cell(SheetCfg.Columns.BREAK, cellStyles.normal) { setCellValue(dayWorkData.breakInMinutes.toDouble()) }
+                cell(SheetCfg.Columns.REMARKS, cellStyles.normal) { setCellValue(dayWorkData.remarks.orEmpty()) }
+                val enterCell = cell(SheetCfg.Columns.ENTER, cellStyles.time) { setCellValue(dayWorkData.startDatetime?.toDate()) }
+                val exitCell = cell(SheetCfg.Columns.EXIT, cellStyles.time) { dayWorkData.exitDatetime?.run { setCellValue(toDate()) } }
 
-            val enterCellRef = getCellRef(row.getCell(SheetCfg.Columns.ENTER, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK))
-            val exitCellRef = getCellRef(row.getCell(SheetCfg.Columns.EXIT, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK))
-            val breakCellRef = getCellRef(row.getCell(SheetCfg.Columns.BREAK, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK))
-            val workTimeNoBreakFormula = Formulas.dateDiff(exitCellRef, enterCellRef)
-            val workHoursFormula = "${Formulas.dateHours(workTimeNoBreakFormula)} - ${Formulas.minuteHours(breakCellRef)}"
-            createCell(row, SheetCfg.Columns.WORK_HOURS_FORMULA, cellStyles.floatNumber).cellFormula = workHoursFormula
+                val workTimeNoBreakFormula = Formulas.dateDiff(exitCell.getRef(), enterCell.getRef())
+                val workHoursFormula = "${Formulas.dateHours(workTimeNoBreakFormula)} - ${Formulas.minuteHours(breakCell.getRef())}"
+                cell(SheetCfg.Columns.WORK_HOURS_FORMULA, cellStyles.floatNumber) { cellFormula = workHoursFormula }
+            }
         }
+
+        createSummary(dayWorkDataList, sheet, stylesMap)
 
         log.debug("Writing to {}", config.file)
         Files.newOutputStream(config.file).use {
             workbook.write(it);
             workbook.close();
+        }
+    }
+
+    private fun createSummary(dayWorkDataList: List<DayWorkData>, sheet: Sheet, stylesMap: Map<String, CellStyle>) {
+        /*
+         * Summary of month
+         */
+        val summaryValues = object {
+            val sumWorkInHours = dayWorkDataList.map { it.breakInMinutes }.sum().toDouble() / TimeUnit.HOURS.toMinutes(1)
+            val workDaysInMonth = dayWorkDataList.count { Predicates.isWorkDay.test(it) }
+            val workHoursInMonth = workDaysInMonth * TimesheetConstants.WORK_TIME_HOURS
+            val missingWorkHours = workHoursInMonth - sumWorkInHours
+            val expectedBreakHoursInMonth = workDaysInMonth * TimesheetConstants.BREAK_TIME_HOURS
+            val totalBreakHoursInMonth = dayWorkDataList.map { it.breakInMinutes }.sum().toDouble() / TimeUnit.HOURS.toMinutes(1)
+            val missingBreakHoursInMonth = expectedBreakHoursInMonth - totalBreakHoursInMonth
+        }
+        val dataIndexes = object {
+            val valuesRow = 1
+            val footerStartRow = dayWorkDataList.size + 1 + 2
+            val workPerHourCol = SheetCfg.Columns.WORK_HOURS
+            val breakPerHourCol = SheetCfg.Columns.BREAK
+        }
+        val summaryCellStyles = object {
+            val floatNumber = stylesMap[getCellStyleKey(CellDataType.FLOAT_NUMBER, DataGroupType.DEFAULT)]
+        }
+        val cellRefs = object {
+            val firstWorkHours = sheet.findCell(dataIndexes.valuesRow, dataIndexes.workPerHourCol).getRef()
+            val lastWorkHours = sheet.findCell(dataIndexes.valuesRow + dayWorkDataList.lastIndex, dataIndexes.workPerHourCol).getRef()
+            val firstBreakHours = sheet.findCell(dataIndexes.valuesRow, dataIndexes.breakPerHourCol).getRef()
+            val lastBreakHours = sheet.findCell(dataIndexes.valuesRow + dayWorkDataList.lastIndex, dataIndexes.breakPerHourCol).getRef()
+            lateinit var workDays: String
+            lateinit var expectedWorkHours: String
+            lateinit var workHours: String
+            lateinit var workHoursFn: String
+            lateinit var expectedBreakHours: String
+            lateinit var breakHoursFn: String
+        }
+        val footerHeaderCol = dataIndexes.workPerHourCol - 1
+        val footerValueCol = footerHeaderCol + 1
+
+        var currentFooterRow = dataIndexes.footerStartRow
+        sheet.row(currentFooterRow) {
+            cell(footerHeaderCol) { setCellValue("WorkDays") }
+            cell(footerValueCol, summaryCellStyles.floatNumber) {
+                setCellValue(summaryValues.workDaysInMonth.toDouble())
+                cellRefs.workDays = getRef()
+            }
+        }
+
+        currentFooterRow++
+        sheet.row(currentFooterRow) {
+            cell(footerHeaderCol) { setCellValue("[E]Work") }
+            cell(footerValueCol, summaryCellStyles.floatNumber) {
+                cellFormula = "${TimesheetConstants.WORK_TIME_HOURS} * ${cellRefs.workDays}"
+                cellRefs.expectedWorkHours = getRef()
+            }
+        }
+
+        sheet.createSeparator(++currentFooterRow, footerHeaderCol)
+
+        currentFooterRow++
+        sheet.row(currentFooterRow) {
+            cell(footerHeaderCol) { setCellValue("Work") }
+            cell(footerValueCol, summaryCellStyles.floatNumber) {
+                setCellValue(summaryValues.sumWorkInHours)
+                cellRefs.workHours = getRef()
+            }
+        }
+
+        currentFooterRow++
+        sheet.row(currentFooterRow) {
+            cell(footerHeaderCol) { setCellValue("Work(f)") }
+            cell(footerValueCol, summaryCellStyles.floatNumber) {
+                cellFormula = "SUM(${cellRefs.firstWorkHours} : ${cellRefs.lastWorkHours})"
+                cellRefs.workHoursFn = getRef()
+            }
+        }
+
+        currentFooterRow++
+        sheet.row(currentFooterRow) {
+            cell(footerHeaderCol) { setCellValue("[-]Work") }
+            cell(footerValueCol, summaryCellStyles.floatNumber) {
+                setCellValue(summaryValues.missingWorkHours)
+            }
+        }
+
+        currentFooterRow++
+        sheet.row(currentFooterRow) {
+            cell(footerHeaderCol) { setCellValue("[-]Work(f)") }
+            cell(footerValueCol, summaryCellStyles.floatNumber) {
+                cellFormula = "${cellRefs.expectedWorkHours} - ${cellRefs.workHoursFn}"
+            }
+        }
+
+        sheet.createSeparator(++currentFooterRow, footerHeaderCol)
+
+        currentFooterRow++
+        sheet.row(currentFooterRow) {
+            cell(footerHeaderCol) { setCellValue("[E]Break") }
+            cell(footerValueCol, summaryCellStyles.floatNumber) {
+                cellFormula = "${TimesheetConstants.BREAK_TIME_HOURS} * ${cellRefs.workDays}"
+                cellRefs.expectedBreakHours = getRef()
+            }
+        }
+
+        currentFooterRow++
+        sheet.row(currentFooterRow) {
+            cell(footerHeaderCol) { setCellValue("Break(f)") }
+            cell(footerValueCol, summaryCellStyles.floatNumber) {
+                cellFormula = "SUM(${cellRefs.firstBreakHours} : ${cellRefs.lastBreakHours}) / ${TimeUnit.HOURS.toMinutes(1)}"
+                cellRefs.breakHoursFn = getRef()
+            }
+        }
+
+        currentFooterRow++
+        sheet.row(currentFooterRow) {
+            cell(footerHeaderCol) { setCellValue("[-]Break(f)") }
+            cell(footerValueCol, summaryCellStyles.floatNumber) {
+                cellFormula = "${cellRefs.expectedBreakHours} - ${cellRefs.breakHoursFn}"
+            }
         }
     }
 
@@ -158,36 +275,30 @@ class ExcelTimesheetReport : TimesheetReport<FileReportConfig> {
         for (cellDataType in CellDataType.values()) {
             val defaultCellStyle = stylesMap[getCellStyleKey(cellDataType, DataGroupType.DEFAULT)]!!
 
-            val variantCellStyle = if (color == null) defaultCellStyle else createBGColorCellStyle(workbook.createCellStyle(), defaultCellStyle, color)
+            val variantCellStyle = if (color == null) defaultCellStyle else workbook.createCellStyle().copyStyle(defaultCellStyle).foregroundColor(color)
             val variantKey = getCellStyleKey(cellDataType, dataGroupType)
             stylesMap[variantKey] = variantCellStyle
         }
     }
 
-    private fun createBGColorCellStyle(cellStyle: CellStyle, fromCellStyle: CellStyle?, bg: Short?): CellStyle {
-        cellStyle.cloneStyleFrom(fromCellStyle)
-        setCellFill(cellStyle, bg)
-        return cellStyle
-    }
-
-    private fun setCellFill(cellStyle: CellStyle, bg: Short?) {
-        if (bg != null) {
-            cellStyle.fillForegroundColor = bg
-            cellStyle.fillPattern = FillPatternType.SOLID_FOREGROUND
-        } else {
-            cellStyle.fillForegroundColor = IndexedColors.AUTOMATIC.getIndex()
-            cellStyle.fillPattern = FillPatternType.NO_FILL
+    private fun CellStyle.foregroundColor(color: Short?): CellStyle {
+        return apply {
+            if (color != null) {
+                fillForegroundColor = color
+                fillPattern = FillPatternType.SOLID_FOREGROUND
+            } else {
+                fillForegroundColor = IndexedColors.AUTOMATIC.getIndex()
+                fillPattern = FillPatternType.NO_FILL
+            }
         }
     }
 
-    private fun createCell(row: Row, column: Int, cellStyle: CellStyle? = null): Cell {
-        val c = row.createCell(column)
-        if (cellStyle != null) {
-            c.cellStyle = cellStyle
+    private fun Sheet.createSeparator(row: Int, column: Int): Unit {
+        row(row) {
+            cell(column) {
+                setCellValue("-".repeat(8))
+            }
         }
-        return c
     }
-
-    private fun getCellRef(cell: Cell): String = CellReference(cell).formatAsString()
 
 }
