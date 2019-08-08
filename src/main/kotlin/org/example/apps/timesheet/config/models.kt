@@ -11,15 +11,15 @@ import javax.xml.bind.annotation.XmlRootElement
 const val DEFAULT_ENCODING = "UTF-8"
 
 data class Absence(
-        var date: LocalDate?,
-        var endDate: LocalDate?,
-        var type: AbsenceType?
+        var date: LocalDate? = null,
+        var endDate: LocalDate? = null,
+        var type: AbsenceType? = null
 )
 
 data class DayOff(
-        var name: String?,
-        var date: LocalDate?,
-        var type: DayOffType?
+        var name: String? = null,
+        var date: LocalDate? = null,
+        var type: DayOffType? = null
 )
 
 data class ConfigData(
