@@ -80,7 +80,6 @@ class ExcelTimesheetReport : TimesheetReport<FileReportConfig> {
             cell(SheetCfg.Columns.EXIT) { setCellValue("Exit") }
             cell(SheetCfg.Columns.WORK_HOURS_FORMULA) { setCellValue("Work (hf)") }
         }
-        val headerRow = sheet.createRow(0)
 
         for ((index, dayWorkData) in dayWorkDataList.withIndex()) {
             val dataGroupType: DataGroupType = when {

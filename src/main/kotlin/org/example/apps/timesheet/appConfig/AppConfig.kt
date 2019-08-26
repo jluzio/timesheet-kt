@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
 import org.springframework.context.event.EventListener
+import java.nio.file.Files
 import java.nio.file.Path
 import javax.inject.Inject
 
@@ -24,7 +25,6 @@ class AppConfig : CommandLineRunner {
     fun logAppStart() {
         log.debug("Timesheet[MAIN] started")
     }
-
 
     override fun run(vararg args: String?) {
         timesheetRunner.run {

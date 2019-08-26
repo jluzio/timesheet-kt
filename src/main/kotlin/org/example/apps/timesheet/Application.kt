@@ -5,7 +5,6 @@ import org.springframework.boot.SpringBootConfiguration
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Import
 
-// @SpringBootApplication
 @SpringBootConfiguration
 @Import(AppConfig::class)
 class Application

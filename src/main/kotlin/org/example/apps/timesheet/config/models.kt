@@ -6,6 +6,7 @@ import java.time.LocalDate
 import java.util.*
 import javax.xml.bind.annotation.XmlAccessType
 import javax.xml.bind.annotation.XmlAccessorType
+import javax.xml.bind.annotation.XmlElement
 import javax.xml.bind.annotation.XmlRootElement
 
 const val DEFAULT_ENCODING = "UTF-8"
@@ -54,7 +55,8 @@ data class RunnerConfig(
         var configDataPath: String? = null,
         var reportsPath: String? = null,
         var reportEncoding: String = DEFAULT_ENCODING,
-        var reportTypes: List<ReportType> = emptyList(),
+        @field:XmlElement(name = "reportType")
+        var reportTypes: List<ReportType> = mutableListOf(),
         var fillAllMonthDays: Boolean = true
 )
 
