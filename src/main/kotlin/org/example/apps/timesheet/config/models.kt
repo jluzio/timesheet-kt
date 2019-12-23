@@ -64,7 +64,7 @@ enum class AbsenceType {
     VACATION, UNJUSTIFIED, OTHER
 }
 enum class DayOffType {
-    HOLIDAY, OTHER
+    HOLIDAY, OPTIONAL, OTHER
 }
 enum class ReportType {
     EXCEL, CSV
